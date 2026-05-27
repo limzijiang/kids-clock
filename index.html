@@ -320,8 +320,17 @@
     font-size: clamp(120px, 22vh, 240px);
     line-height: 1;
     margin: 0 auto 1vh;
-    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.2));
+    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.25));
     animation: float 2.5s ease-in-out infinite;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .popup-creature img {
+    width: clamp(200px, 36vh, 380px);
+    height: clamp(200px, 36vh, 380px);
+    object-fit: contain;
+    border-radius: 30px;
   }
   @keyframes float { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-12px) rotate(3deg); } }
   .popup-name {
@@ -522,10 +531,10 @@ const DAYS = [
 ];
 
 const ACTIVITIES = [
-  { h: 7,  m: 30, emoji: '🎒', zh: '上學', en: 'School', color: '#4ECDC4', period: 'am', creature: '🐬' },
-  { h: 18, m: 30, emoji: '🍚', zh: '吃飯', en: 'Dinner', color: '#FF6B9D', period: 'pm', creature: '🐢' },
-  { h: 20, m: 0,  emoji: '🛁', zh: '洗澡', en: 'Bath',   color: '#A06CD5', period: 'pm', creature: '🐳' },
-  { h: 20, m: 30, emoji: '😴', zh: '睡覺', en: 'Sleep',  color: '#95E06C', period: 'pm', creature: '🐙' },
+  { h: 7,  m: 30, emoji: '🎒', zh: '上學', en: 'School', color: '#4ECDC4', period: 'am', creature: '🐬', image: 'img/dolphin_school.jpg' },
+  { h: 18, m: 30, emoji: '🍚', zh: '吃飯', en: 'Dinner', color: '#FF6B9D', period: 'pm', creature: '🐢', image: 'img/turtle_dinner.jpg' },
+  { h: 20, m: 0,  emoji: '🛁', zh: '洗澡', en: 'Bath',   color: '#A06CD5', period: 'pm', creature: '🐳', image: 'img/whale_bath.jpg' },
+  { h: 20, m: 30, emoji: '😴', zh: '睡覺', en: 'Sleep',  color: '#95E06C', period: 'pm', creature: '🐙', image: 'img/octopus_sleep.jpg' },
 ];
 
 const SHIFTS = {
@@ -704,7 +713,11 @@ const popupClose = document.getElementById('popup-close');
 let popupAutoCloseTimer = null;
 
 function showActivityPopup(a) {
-  popupCreature.textContent = a.creature;
+  if (a.image) {
+    popupCreature.innerHTML = `<img src="${a.image}" alt="${a.creature}" onerror="this.parentNode.textContent='${a.creature}'">`;
+  } else {
+    popupCreature.textContent = a.creature;
+  }
   popupZh.textContent = `${KID_NAME_ZH}，現在是${a.zh}時間！`;
   popupEn.textContent = `${KID_NAME_EN}, it's ${a.en.toLowerCase()} time!`;
   popupOverlay.classList.add('show');
