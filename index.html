@@ -418,20 +418,29 @@
     color: var(--purple);
     margin-bottom: 2.5vh;
   }
-  .popup-close {
-    background: linear-gradient(135deg, var(--accent), var(--pink));
+  .popup-actions {
+    display: flex;
+    gap: clamp(8px, 1.4vw, 18px);
+    justify-content: center;
+    flex-wrap: wrap;
+    position: relative;
+  }
+  .popup-btn {
     color: white;
     border: none;
     font-family: inherit;
-    font-size: clamp(20px, 2.4vw, 32px);
+    font-size: clamp(18px, 2.2vw, 30px);
     font-weight: 900;
-    padding: 1.4vh 4vw;
+    padding: 1.3vh 3.2vw;
     border-radius: 999px;
     cursor: pointer;
-    box-shadow: 0 6px 0 rgba(0,0,0,0.2);
-    position: relative;
+    box-shadow: 0 6px 0 rgba(46,26,71,0.25);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+    white-space: nowrap;
   }
-  .popup-close:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+  .popup-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(46,26,71,0.25); }
+  .popup-replay { background: linear-gradient(135deg, var(--purple), var(--ocean)); }
+  .popup-close  { background: linear-gradient(135deg, var(--accent), var(--pink)); }
 
   .settings {
     background: white;
@@ -474,6 +483,23 @@
   .settings details summary { cursor: pointer; font-weight: 700; padding: 8px; background: #f5f5f5; border-radius: 8px; }
   .settings details ol { padding: 12px 24px; line-height: 1.6; }
   .settings details code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; word-break: break-all; }
+  .popup-tests { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
+  .popup-tests button {
+    flex: none;
+    min-width: 0;
+    padding: 12px 6px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    line-height: 1.1;
+  }
+  .popup-tests button .em { font-size: 26px; }
+  .popup-tests button .lbl { font-size: 11px; font-weight: 800; }
   .status-line { padding: 8px 12px; border-radius: 8px; margin-top: 1vh; font-size: 13px; }
   .status-line.ok { background: #d4f4dd; color: #155724; }
   .status-line.warn { background: #fff3cd; color: #856404; }
@@ -547,7 +573,10 @@
     <div class="popup-name">林盟 / Lin Meng</div>
     <div class="popup-msg-zh" id="popup-zh"></div>
     <div class="popup-msg-en" id="popup-en"></div>
-    <button class="popup-close" id="popup-close">好 / OK</button>
+    <div class="popup-actions">
+      <button class="popup-btn popup-replay" id="popup-replay">🔁 重播 / Replay</button>
+      <button class="popup-btn popup-close" id="popup-close">好 / OK</button>
+    </div>
   </div>
 </div>
 
@@ -576,6 +605,9 @@
         <li>透過 corsproxy.io 抓取（網頁不會看到你的 Google 密鑰外洩，但 URL 本身就是你的密鑰，請勿外流）</li>
       </ol>
     </details>
+
+    <label>🧪 手動觸發彈窗 / Manual Popup</label>
+    <div class="popup-tests" id="popup-tests"></div>
 
     <button class="btn-close" id="close-settings">關閉 / Close</button>
   </div>
@@ -775,17 +807,13 @@ const popupCreature = document.getElementById('popup-creature');
 const popupZh = document.getElementById('popup-zh');
 const popupEn = document.getElementById('popup-en');
 const popupClose = document.getElementById('popup-close');
+const popupReplay = document.getElementById('popup-replay');
 let popupAutoCloseTimer = null;
+let currentPopupActivity = null;
 
-function showActivityPopup(a) {
-  if (a.image) {
-    popupCreature.innerHTML = `<img src="${a.image}" alt="${a.creature}" onerror="this.parentNode.textContent='${a.creature}'">`;
-  } else {
-    popupCreature.textContent = a.creature;
-  }
-  popupZh.textContent = `${KID_NAME_ZH}，現在是${a.zh}時間！`;
-  popupEn.textContent = `${KID_NAME_EN}, it's ${a.en.toLowerCase()} time!`;
-  popupOverlay.classList.add('show');
+function playPopupVoice(a, opts = {}) {
+  const chimeDelay = opts.delay != null ? opts.delay : 1500;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
   chimeFanfare();
   setTimeout(() => {
     speakBilingual(
@@ -799,17 +827,56 @@ function showActivityPopup(a) {
         }
       }
     );
-  }, 1500);
+  }, chimeDelay);
   clearTimeout(popupAutoCloseTimer);
   popupAutoCloseTimer = setTimeout(closePopup, 60000);
+}
+
+function showActivityPopup(a) {
+  currentPopupActivity = a;
+  if (a.image) {
+    popupCreature.innerHTML = `<img src="${a.image}" alt="${a.creature}" onerror="this.parentNode.textContent='${a.creature}'">`;
+  } else {
+    popupCreature.textContent = a.creature;
+  }
+  popupZh.textContent = `${KID_NAME_ZH}，現在是${a.zh}時間！`;
+  popupEn.textContent = `${KID_NAME_EN}, it's ${a.en.toLowerCase()} time!`;
+  popupOverlay.classList.add('show');
+  playPopupVoice(a);
 }
 function closePopup() {
   popupOverlay.classList.remove('show');
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   clearTimeout(popupAutoCloseTimer);
+  currentPopupActivity = null;
 }
 popupClose.addEventListener('click', closePopup);
+popupReplay.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (currentPopupActivity) playPopupVoice(currentPopupActivity, { delay: 600 });
+});
 popupOverlay.addEventListener('click', (e) => { if (e.target === popupOverlay) closePopup(); });
+
+// Make analog-clock activity circles tappable to manually trigger their popup
+ACTIVITIES.forEach((a, i) => {
+  const node = document.getElementById('act-' + i);
+  if (!node) return;
+  node.style.cursor = 'pointer';
+  node.addEventListener('click', () => showActivityPopup(a));
+});
+
+// Render manual-popup test buttons inside the settings modal
+const popupTestsEl = document.getElementById('popup-tests');
+ACTIVITIES.forEach((a) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.innerHTML = `<span class="em">${a.emoji}</span><span class="lbl">${a.zh}<br>${a.en}</span>`;
+  b.addEventListener('click', () => {
+    document.getElementById('settings-overlay').classList.remove('show');
+    showActivityPopup(a);
+  });
+  popupTestsEl.appendChild(b);
+});
 
 let lastChimedHour = -1;
 let lastPoppedKey = '';
