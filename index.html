@@ -9,18 +9,23 @@
 
 <style>
   :root {
-    --bg1: #FFE5B4;
-    --bg2: #FFD1DC;
-    --bg3: #B5EAD7;
+    /* Backgrounds — purple → peach → lavender diagonal flow */
+    --bg1: #EDE9FE;
+    --bg2: #FED7AA;
+    --bg3: #DDD6FE;
+
     --card: #FFFFFF;
-    --ink: #2D3047;
-    --accent: #FF6B6B;
-    --gold: #FFC93C;
-    --blue: #4ECDC4;
-    --pink: #FF6B9D;
-    --purple: #A06CD5;
-    --green: #95E06C;
-    --ocean: #00B4D8;
+    --ink: #2E1A47;       /* deep purple-black */
+
+    /* Primary (orange) + secondary (purple) — complementary contrast pair */
+    --accent: #F97316;    /* orange, main CTA */
+    --gold:   #FB923C;    /* lighter orange — AM/PM badge, secondary highlights */
+    --pink:   #EA580C;    /* deep orange — gradient partner */
+    --purple: #7C3AED;    /* purple, main secondary */
+    --blue:   #A78BFA;    /* light purple — was cool blue */
+    --ocean:  #5B21B6;    /* deep purple — was deep cool */
+
+    --green:  #10B981;    /* preserved for semantic "home / off" */
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -83,10 +88,10 @@
   .day .zh { font-size: clamp(12px, 1.4vw, 18px); font-weight: 800; }
   .day .en { font-size: clamp(10px, 1.1vw, 14px); font-weight: 600; opacity: 0.7; }
   .day.active {
-    background: linear-gradient(135deg, var(--gold), var(--accent));
+    background: linear-gradient(135deg, var(--accent), var(--purple));
     color: white;
     transform: translateY(-3px) scale(1.04);
-    box-shadow: 0 8px 0 rgba(255,107,107,0.4), 0 0 0 3px rgba(255,255,255,0.9) inset;
+    box-shadow: 0 8px 0 rgba(124,58,237,0.35), 0 0 0 3px rgba(255,255,255,0.9) inset;
     animation: bounce 1.4s ease-in-out infinite;
   }
   .day.active .en { opacity: 0.9; }
@@ -127,10 +132,10 @@
     text-align: center;
     line-height: 1.15;
   }
-  .shift-badge.day   { background: linear-gradient(135deg, #FFC93C, #FF9F1C); }
-  .shift-badge.night { background: linear-gradient(135deg, #5E60CE, #1D3557); }
-  .shift-badge.off   { background: linear-gradient(135deg, #95E06C, #4ECDC4); }
-  .shift-badge.unknown { background: #BDB2D6; }
+  .shift-badge.day   { background: linear-gradient(135deg, #FB923C, #EA580C); }
+  .shift-badge.night { background: linear-gradient(135deg, #A78BFA, #5B21B6); }
+  .shift-badge.off   { background: linear-gradient(135deg, #10B981, #059669); }
+  .shift-badge.unknown { background: #C4B5FD; }
 
   .shift-times {
     font-size: clamp(12px, 1.4vw, 18px);
@@ -181,10 +186,10 @@
     height: 100%;
     border-radius: 999px;
     transition: width 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
-    background: linear-gradient(90deg, #FFC93C, #FF9F1C, #FF6B6B);
+    background: linear-gradient(90deg, #FED7AA, #FB923C, #EA580C);
   }
   .shift-progress-fill.night {
-    background: linear-gradient(90deg, #5E60CE, #4361EE, #1D3557);
+    background: linear-gradient(90deg, #C4B5FD, #7C3AED, #5B21B6);
   }
   .shift-progress-marker {
     position: absolute;
@@ -199,17 +204,17 @@
     transition: left 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
     animation: marker-pulse 1.4s infinite;
   }
-  .shift-progress-marker.night { border-color: #5E60CE; }
+  .shift-progress-marker.night { border-color: #7C3AED; }
   @keyframes marker-pulse {
-    0%, 100% { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 0 rgba(255,107,107,0.6); }
-    50%      { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 10px rgba(255,107,107,0); }
+    0%, 100% { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 0 rgba(249,115,22,0.6); }
+    50%      { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 10px rgba(249,115,22,0); }
   }
   .shift-progress-marker.night {
     animation-name: marker-pulse-night;
   }
   @keyframes marker-pulse-night {
-    0%, 100% { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 0 rgba(94,96,206,0.6); }
-    50%      { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 10px rgba(94,96,206,0); }
+    0%, 100% { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 0 rgba(124,58,237,0.6); }
+    50%      { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 10px rgba(124,58,237,0); }
   }
 
   .main {
@@ -242,14 +247,14 @@
     letter-spacing: 1.5px;
   }
 
-  .digital { background: linear-gradient(135deg, #FFF5E1, #FFE5B4); }
+  .digital { background: linear-gradient(135deg, #FFF7ED, #FED7AA); }
   .digital-time {
     font-family: "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
     font-weight: 900;
     font-size: clamp(60px, 11vw, 180px);
     line-height: 1;
     color: var(--accent);
-    text-shadow: 0 6px 0 rgba(255,107,107,0.25);
+    text-shadow: 0 6px 0 rgba(249,115,22,0.25);
     letter-spacing: -2px;
     display: flex;
     align-items: baseline;
@@ -280,11 +285,11 @@
     font-size: clamp(18px, 2.2vw, 32px);
     font-weight: 900;
     color: white;
-    background: linear-gradient(135deg, var(--blue), var(--purple));
+    background: linear-gradient(135deg, var(--accent), var(--purple));
     border: none;
     padding: 1.2vh 2.6vw;
     border-radius: 999px;
-    box-shadow: 0 6px 0 rgba(0,0,0,0.18);
+    box-shadow: 0 6px 0 rgba(46,26,71,0.25);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -295,7 +300,7 @@
   .chime-btn.ringing { animation: ring 0.4s ease-in-out 3; }
   @keyframes ring { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
 
-  .analog { background: linear-gradient(135deg, #E0F7FA, #B5EAD7); }
+  .analog { background: linear-gradient(135deg, #F5F3FF, #DDD6FE); }
   .clock-wrap { position: relative; width: min(82%, 56vh); aspect-ratio: 1; }
   .clock-svg { width: 100%; height: 100%; overflow: visible; }
   .face { fill: #FFFEF7; stroke: var(--ink); stroke-width: 4; }
@@ -354,13 +359,13 @@
   @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 
   .popup {
-    background: linear-gradient(160deg, #E0F7FA 0%, #B5EAD7 60%, #C8E6C9 100%);
+    background: linear-gradient(160deg, #F3F0FF 0%, #FFF7ED 55%, #FED7AA 100%);
     border-radius: 36px;
     padding: 4vh 4vw;
     width: min(720px, 90vw);
     max-height: 92vh;
     text-align: center;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    box-shadow: 0 20px 60px rgba(46,26,71,0.45);
     border: 6px solid #FFF;
     animation: popin 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
     position: relative;
@@ -372,8 +377,8 @@
     position: absolute;
     inset: 0;
     background-image:
-      radial-gradient(circle at 20% 80%, rgba(0,180,216,0.15) 0, transparent 40%),
-      radial-gradient(circle at 80% 20%, rgba(255,193,7,0.15) 0, transparent 40%);
+      radial-gradient(circle at 18% 82%, rgba(124,58,237,0.18) 0, transparent 42%),
+      radial-gradient(circle at 82% 18%, rgba(249,115,22,0.22) 0, transparent 42%);
     pointer-events: none;
   }
   .popup-creature {
@@ -398,7 +403,7 @@
     font-weight: 900;
     color: var(--accent);
     margin-bottom: 0.5vh;
-    text-shadow: 0 4px 0 rgba(255,107,107,0.2);
+    text-shadow: 0 4px 0 rgba(249,115,22,0.22);
   }
   .popup-msg-zh {
     font-size: clamp(34px, 5.5vw, 72px);
@@ -461,10 +466,10 @@
     cursor: pointer;
     color: white;
   }
-  .btn-primary { background: var(--blue); }
+  .btn-primary { background: var(--accent); }
   .btn-secondary { background: var(--purple); }
   .btn-danger { background: #999; }
-  .btn-close { background: #333; margin-top: 2vh; width: 100%; }
+  .btn-close { background: var(--ink); margin-top: 2vh; width: 100%; }
   .settings details { margin-top: 2vh; font-size: 13px; }
   .settings details summary { cursor: pointer; font-weight: 700; padding: 8px; background: #f5f5f5; border-radius: 8px; }
   .settings details ol { padding: 12px 24px; line-height: 1.6; }
@@ -591,10 +596,10 @@ const DAYS = [
 ];
 
 const ACTIVITIES = [
-  { h: 7,  m: 30, emoji: '🎒', zh: '上學', en: 'School', color: '#4ECDC4', period: 'am', creature: '🐬', image: 'img/dolphin_school.jpg' },
-  { h: 18, m: 30, emoji: '🍚', zh: '吃飯', en: 'Dinner', color: '#FF6B9D', period: 'pm', creature: '🐢', image: 'img/turtle_dinner.jpg' },
-  { h: 20, m: 0,  emoji: '🛁', zh: '洗澡', en: 'Bath',   color: '#A06CD5', period: 'pm', creature: '🐳', image: 'img/whale_bath.jpg' },
-  { h: 20, m: 30, emoji: '😴', zh: '睡覺', en: 'Sleep',  color: '#95E06C', period: 'pm', creature: '🐙', image: 'img/octopus_sleep.jpg' },
+  { h: 7,  m: 30, emoji: '🎒', zh: '上學', en: 'School', color: '#7C3AED', period: 'am', creature: '🐬', image: 'img/dolphin_school.jpg' },
+  { h: 18, m: 30, emoji: '🍚', zh: '吃飯', en: 'Dinner', color: '#F97316', period: 'pm', creature: '🐢', image: 'img/turtle_dinner.jpg' },
+  { h: 20, m: 0,  emoji: '🛁', zh: '洗澡', en: 'Bath',   color: '#A78BFA', period: 'pm', creature: '🐳', image: 'img/whale_bath.jpg' },
+  { h: 20, m: 30, emoji: '😴', zh: '睡覺', en: 'Sleep',  color: '#5B21B6', period: 'pm', creature: '🐙', image: 'img/octopus_sleep.jpg' },
 ];
 
 const SHIFTS = {
