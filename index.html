@@ -521,13 +521,13 @@ const KID_NAME_ZH = '林盟';
 const KID_NAME_EN = 'Lin Meng';
 
 const DAYS = [
-  { zh: '星期日', en: 'Sun', emoji: '☀️' },
-  { zh: '星期一', en: 'Mon', emoji: '🌱' },
-  { zh: '星期二', en: 'Tue', emoji: '🐰' },
-  { zh: '星期三', en: 'Wed', emoji: '🌈' },
-  { zh: '星期四', en: 'Thu', emoji: '🦋' },
-  { zh: '星期五', en: 'Fri', emoji: '🎈' },
-  { zh: '星期六', en: 'Sat', emoji: '⭐' },
+  { zh: '星期日', en: 'Sun' },
+  { zh: '星期一', en: 'Mon' },
+  { zh: '星期二', en: 'Tue' },
+  { zh: '星期三', en: 'Wed' },
+  { zh: '星期四', en: 'Thu' },
+  { zh: '星期五', en: 'Fri' },
+  { zh: '星期六', en: 'Sat' },
 ];
 
 const ACTIVITIES = [
@@ -547,7 +547,7 @@ DAYS.forEach((d, i) => {
   const el = document.createElement('div');
   el.className = 'day';
   el.dataset.idx = i;
-  el.innerHTML = `<div class="emoji">${d.emoji}</div><div class="zh">${d.zh}</div><div class="en">${d.en}</div>`;
+  el.innerHTML = `<div class="zh">${d.zh}</div><div class="en">${d.en}</div>`;
   weekEl.appendChild(el);
 });
 
@@ -900,8 +900,9 @@ function buildShiftIntervals(events) {
     const t = (ev.summary || '').trim();
     if (!t) continue;
     let type = null;
-    if (/夜班|\bnight\b/i.test(t) || /夜/.test(t)) type = 'night';
-    else if (/白班|\bday\b/i.test(t) || /白/.test(t)) type = 'day';
+    // Match 班 patterns explicitly to avoid false positives like "宿舍夜點"
+    if (/夜班|\bnight\s*shift\b/i.test(t)) type = 'night';
+    else if (/白班|\bday\s*shift\b/i.test(t)) type = 'day';
     if (!type) continue;
     const eventStart = ev.start;
     if (!eventStart) continue;
