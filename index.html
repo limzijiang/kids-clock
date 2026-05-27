@@ -322,6 +322,25 @@
   .activity.now .activity-bg { animation: pulse 1s ease-in-out infinite; stroke-width: 6; }
   @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 
+  /* Pointer line: drawn when an activity is "now", visually links clock hands to the activity icon */
+  .now-pointer {
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-dasharray: 14 10;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+  }
+  .now-pointer.active {
+    opacity: 0.55;
+    animation: dash-flow 1.4s linear infinite;
+  }
+  @keyframes dash-flow { to { stroke-dashoffset: -24; } }
+
+  /* Hands take on the activity colour + a glowing halo while in the activity window */
+  .hand.now-glow { filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor); }
+  .hand-hour, .hand-min { transition: stroke 0.6s ease, filter 0.6s ease; }
+
   .now-banner {
     position: absolute;
     bottom: 1.2vh;
@@ -682,6 +701,8 @@ for (let h = 1; h <= 12; h++) {
   const rN = R - 48;
   clock.appendChild(el('text', { class: 'num', x: CX + rN * Math.cos(angle), y: CY + rN * Math.sin(angle) }, h));
 }
+// Pointer line stops short of the activity circle (which has r=48 at distance R+58 from centre)
+const POINTER_END_OFFSET = 56;
 ACTIVITIES.forEach((a, i) => {
   const hour12 = a.h % 12;
   const totalMin = hour12 * 60 + a.m;
@@ -690,6 +711,16 @@ ACTIVITIES.forEach((a, i) => {
   const rA = R + 58;
   const x = CX + rA * Math.cos(angle);
   const y = CY + rA * Math.sin(angle);
+  // Pointer endpoint: stop just short of the activity circle for a clean look
+  const rEnd = rA - POINTER_END_OFFSET;
+  const px = CX + rEnd * Math.cos(angle);
+  const py = CY + rEnd * Math.sin(angle);
+  // Pointer line first (drawn under everything else)
+  clock.appendChild(el('line', {
+    class: 'now-pointer', id: 'ptr-' + i,
+    x1: CX, y1: CY, x2: px, y2: py,
+    stroke: a.color,
+  }));
   const g = el('g', { class: 'activity', id: 'act-' + i });
   g.appendChild(el('circle', { class: 'activity-bg', cx: x, cy: y, r: 48, stroke: a.color }));
   g.appendChild(el('text', { class: 'activity-emoji', x: x, y: y - 14 }, a.emoji));
@@ -961,15 +992,36 @@ function update() {
   let currentAct = null;
   ACTIVITIES.forEach((a, i) => {
     const node = document.getElementById('act-' + i);
+    const ptr  = document.getElementById('ptr-' + i);
     const inPeriod = a.period === period;
     node.style.display = inPeriod ? '' : 'none';
-    if (!inPeriod) { node.classList.remove('now'); return; }
+    if (ptr) ptr.style.display = inPeriod ? '' : 'none';
+    if (!inPeriod) {
+      node.classList.remove('now');
+      if (ptr) ptr.classList.remove('active');
+      return;
+    }
     const actMin = a.h * 60 + a.m;
     const diff = Math.abs(totalMin - actMin);
     const isNow = diff <= 15;
     node.classList.toggle('now', isNow);
+    if (ptr) ptr.classList.toggle('active', isNow);
     if (isNow) currentAct = a;
   });
+
+  // Tint + glow the hands to match the currently-active activity (teaches the
+  // child: "the hands point HERE → that means activity X")
+  if (currentAct) {
+    handHour.style.stroke = currentAct.color;
+    handMin.style.stroke  = currentAct.color;
+    handHour.classList.add('now-glow');
+    handMin.classList.add('now-glow');
+  } else {
+    handHour.style.stroke = '';
+    handMin.style.stroke  = '';
+    handHour.classList.remove('now-glow');
+    handMin.classList.remove('now-glow');
+  }
 
   if (currentAct) {
     banner.innerHTML = `<span style="font-size:1.4em">${currentAct.emoji}</span>
