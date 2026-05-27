@@ -7,8 +7,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>林盟的時間表 — Lin Meng's Day</title>
 
-<script src="https://accounts.google.com/gsi/client" async defer onload="window.__gisReady=true"></script>
-
 <style>
   :root {
     --bg1: #FFE5B4;
@@ -483,25 +481,25 @@
   <div class="settings">
     <h2>⚙️ 設定 / Settings</h2>
 
-    <label>Google OAuth Client ID</label>
-    <input type="text" id="client-id-input" placeholder="123...apps.googleusercontent.com">
+    <label>Google Calendar 私人 iCal 網址 / Secret iCal URL</label>
+    <input type="text" id="ical-url-input" placeholder="https://calendar.google.com/calendar/ical/.../private-xxx/basic.ics">
     <div id="auth-status" class="status-line warn">尚未連接 / Not connected</div>
 
     <div class="settings-actions">
-      <button class="btn-primary" id="save-clientid">儲存 ID / Save</button>
-      <button class="btn-secondary" id="signin-btn">登入 / Sign In</button>
-      <button class="btn-danger" id="signout-btn">登出 / Sign Out</button>
+      <button class="btn-primary" id="save-ical">儲存並更新 / Save &amp; Refresh</button>
+      <button class="btn-danger" id="clear-ical">清除 / Clear</button>
     </div>
 
     <details>
-      <summary>📖 如何取得 Client ID / How to get</summary>
+      <summary>📖 如何取得 iCal 網址 / How to get</summary>
       <ol>
-        <li>到 <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console → Credentials</a></li>
-        <li>建立專案 → 啟用 <b>Google Calendar API</b></li>
-        <li>建立 <b>OAuth Client ID</b>，類型選 <b>Web application</b></li>
-        <li>「Authorized JavaScript origins」加入 <code>https://limzijiang.github.io</code></li>
-        <li>複製 Client ID 貼上面欄位 → 儲存 → 登入</li>
-        <li>行事曆事件標題含「白班」「夜班」即可被偵測</li>
+        <li>開啟 <a href="https://calendar.google.com/calendar/u/0/r/settings/calendar" target="_blank">Google 日曆設定</a></li>
+        <li>左欄「我的日曆設定」→ 點放班表的日曆</li>
+        <li>滑到「整合日曆」段落</li>
+        <li>找「<b>iCal 格式的私人網址</b>」(綠色，含 <code>private-</code>) → 複製</li>
+        <li>貼上面欄位 → 儲存</li>
+        <li>事件標題含「白班」「夜班」即被偵測</li>
+        <li>透過 corsproxy.io 抓取（網頁不會看到你的 Google 密鑰外洩，但 URL 本身就是你的密鑰，請勿外流）</li>
       </ol>
     </details>
 
@@ -806,84 +804,80 @@ function update() {
 update();
 setInterval(update, 1000);
 
-const CAL_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
-let tokenClient = null;
-let accessToken = null;
+/* ───────── Shift detection via iCal URL + CORS proxy ───────── */
+const CORS_PROXY = 'https://corsproxy.io/?url=';
 let cachedShiftIntervals = [];
+let lastIcalFetchOk = null;
 
-function getClientId() { return localStorage.getItem('gcal_client_id') || ''; }
-function saveClientId(id) { localStorage.setItem('gcal_client_id', id); }
-function saveToken(token, expSec) {
-  const exp = Date.now() + (expSec - 60) * 1000;
-  localStorage.setItem('gcal_token', JSON.stringify({ token, exp }));
-}
-function loadToken() {
-  try {
-    const s = localStorage.getItem('gcal_token');
-    if (!s) return null;
-    const { token, exp } = JSON.parse(s);
-    if (Date.now() > exp) return null;
-    return token;
-  } catch { return null; }
-}
-function clearToken() { localStorage.removeItem('gcal_token'); accessToken = null; }
+function getIcalUrl() { return localStorage.getItem('ical_url') || ''; }
+function saveIcalUrl(u) { localStorage.setItem('ical_url', u); }
+function clearIcalUrl() { localStorage.removeItem('ical_url'); }
 
-function initTokenClient() {
-  const cid = getClientId();
-  if (!cid || !window.google?.accounts?.oauth2) return false;
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: cid,
-    scope: CAL_SCOPE,
-    callback: (resp) => {
-      if (resp.access_token) {
-        accessToken = resp.access_token;
-        saveToken(resp.access_token, resp.expires_in || 3600);
-        setAuthStatus('ok', '✅ 已連接 / Connected');
-        fetchAndRenderShift();
-      } else {
-        setAuthStatus('err', '❌ 授權失敗 / Auth failed');
-      }
-    },
-    error_callback: (err) => {
-      setAuthStatus('err', '❌ ' + (err.message || err.type || 'Error'));
-    },
-  });
-  return true;
+/* Minimal ICS parser — pulls SUMMARY / DTSTART / DTEND from VEVENT blocks.
+   Handles line folding (lines starting with space continue the previous line)
+   and date forms: 20260528T070000Z, 20260528T070000, 20260528 (all-day). */
+function unfoldIcs(text) {
+  // RFC 5545 line folding: a line starting with space/tab continues previous
+  return text.replace(/\r?\n[ \t]/g, '');
 }
-
-function signIn() {
-  if (!tokenClient && !initTokenClient()) {
-    setAuthStatus('err', '請先儲存 Client ID / Save Client ID first');
-    return;
+function parseIcsDate(val, tzid) {
+  // Returns Date or null
+  if (!val) return null;
+  if (/^\d{8}$/.test(val)) {
+    // All-day date YYYYMMDD → local midnight
+    return new Date(+val.slice(0,4), +val.slice(4,6) - 1, +val.slice(6,8));
   }
-  tokenClient.requestAccessToken({ prompt: 'consent' });
+  const m = val.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/);
+  if (!m) return null;
+  const [, y, mo, d, h, mi, s, z] = m;
+  if (z === 'Z') {
+    return new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s));
+  }
+  // Treat as local time (we ignore TZID — most calendars send UTC for events anyway)
+  return new Date(+y, +mo - 1, +d, +h, +mi, +s);
 }
-function signOut() {
-  clearToken();
-  cachedShiftIntervals = [];
-  setAuthStatus('warn', '已登出 / Signed out');
-  renderShift();
+function parseIcs(text) {
+  const lines = unfoldIcs(text).split(/\r?\n/);
+  const events = [];
+  let cur = null;
+  for (const line of lines) {
+    if (line === 'BEGIN:VEVENT') { cur = {}; continue; }
+    if (line === 'END:VEVENT') { if (cur) events.push(cur); cur = null; continue; }
+    if (!cur) continue;
+    const colonIdx = line.indexOf(':');
+    if (colonIdx < 0) continue;
+    const keyPart = line.slice(0, colonIdx);
+    const val = line.slice(colonIdx + 1);
+    const [name, ...params] = keyPart.split(';');
+    const paramMap = {};
+    for (const p of params) {
+      const [k, v] = p.split('=');
+      paramMap[k] = v;
+    }
+    if (name === 'SUMMARY') cur.summary = val.replace(/\\n/g, ' ').replace(/\\,/g, ',').trim();
+    else if (name === 'DTSTART') cur.start = parseIcsDate(val, paramMap.TZID);
+    else if (name === 'DTEND')   cur.end   = parseIcsDate(val, paramMap.TZID);
+  }
+  return events;
 }
 
 async function fetchAndRenderShift() {
-  if (!accessToken) accessToken = loadToken();
-  if (!accessToken) { renderShift(); return; }
-  const now = new Date();
-  const timeMin = new Date(now); timeMin.setDate(now.getDate() - 1); timeMin.setHours(0,0,0,0);
-  const timeMax = new Date(now); timeMax.setDate(now.getDate() + 1); timeMax.setHours(23,59,59,999);
-  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-    `timeMin=${encodeURIComponent(timeMin.toISOString())}` +
-    `&timeMax=${encodeURIComponent(timeMax.toISOString())}` +
-    `&singleEvents=true&orderBy=startTime`;
+  const url = getIcalUrl();
+  if (!url) { cachedShiftIntervals = []; renderShift(); return; }
+  const proxied = CORS_PROXY + encodeURIComponent(url);
   try {
-    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
-    if (r.status === 401) { clearToken(); cachedShiftIntervals = []; renderShift(); return; }
+    const r = await fetch(proxied, { cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    cachedShiftIntervals = buildShiftIntervals(data.items || []);
+    const text = await r.text();
+    if (!text.includes('BEGIN:VCALENDAR')) throw new Error('not an iCal feed');
+    const events = parseIcs(text);
+    cachedShiftIntervals = buildShiftIntervals(events);
+    lastIcalFetchOk = new Date();
+    setAuthStatus('ok', `✅ 已連接 / Connected (${events.length} 個事件 / events)`);
     renderShift();
   } catch (e) {
-    console.warn('Calendar fetch failed:', e);
+    console.warn('iCal fetch failed:', e);
+    setAuthStatus('err', '❌ 抓取失敗 / Fetch failed: ' + e.message);
   }
 }
 
@@ -891,13 +885,13 @@ function buildShiftIntervals(events) {
   const ivs = [];
   for (const ev of events) {
     const t = (ev.summary || '').trim();
-    const isDay = /白班|\bday\b|\bD\b/i.test(t) || /白/.test(t);
-    const isNight = /夜班|\bnight\b|\bN\b/i.test(t) || /夜/.test(t);
+    if (!t) continue;
     let type = null;
-    if (isNight) type = 'night';   // check night first ("夜" alone)
-    else if (isDay) type = 'day';
+    if (/夜班|\bnight\b/i.test(t) || /夜/.test(t)) type = 'night';
+    else if (/白班|\bday\b/i.test(t) || /白/.test(t)) type = 'day';
     if (!type) continue;
-    const eventStart = new Date(ev.start.dateTime || ev.start.date);
+    const eventStart = ev.start;
+    if (!eventStart) continue;
     const dayStart = new Date(eventStart); dayStart.setHours(0,0,0,0);
     const sh = SHIFTS[type];
     const leave = new Date(dayStart); leave.setHours(sh.leaveH, sh.leaveM, 0, 0);
@@ -906,6 +900,8 @@ function buildShiftIntervals(events) {
     home.setHours(sh.homeH, sh.homeM, 0, 0);
     ivs.push({ type, leave, home, title: t });
   }
+  // Sort by leave time so currentShiftState picks earliest match
+  ivs.sort((a, b) => a.leave - b.leave);
   return ivs;
 }
 
@@ -936,19 +932,10 @@ const shiftTimesEl = document.getElementById('shift-times');
 const shiftStatusEl = document.getElementById('shift-status');
 
 function renderShift() {
-  const cid = getClientId();
-  const tok = accessToken || loadToken();
-  if (!cid) {
+  if (!getIcalUrl()) {
     shiftBadge.className = 'shift-badge unknown';
     shiftBadge.innerHTML = '尚未設定<br>Not set up';
     shiftTimesEl.innerHTML = '⚙️ 點右上角設定<br>Tap top-right ⚙️';
-    shiftStatusEl.innerHTML = '';
-    return;
-  }
-  if (!tok) {
-    shiftBadge.className = 'shift-badge unknown';
-    shiftBadge.innerHTML = '需要登入<br>Sign In';
-    shiftTimesEl.innerHTML = '請打開設定 → 登入<br>Open settings → Sign In';
     shiftStatusEl.innerHTML = '';
     return;
   }
@@ -977,13 +964,12 @@ function renderShift() {
   }
 }
 
-setInterval(() => {
-  if (accessToken || loadToken()) fetchAndRenderShift();
-}, 10 * 60 * 1000);
+// Refresh iCal every 30 min (avoid hammering corsproxy)
+setInterval(() => { if (getIcalUrl()) fetchAndRenderShift(); }, 30 * 60 * 1000);
 
 const settingsBtn = document.getElementById('settings-btn');
 const settingsOverlay = document.getElementById('settings-overlay');
-const clientIdInput = document.getElementById('client-id-input');
+const icalInput = document.getElementById('ical-url-input');
 const authStatusEl = document.getElementById('auth-status');
 
 function setAuthStatus(kind, msg) {
@@ -992,44 +978,39 @@ function setAuthStatus(kind, msg) {
 }
 
 function refreshAuthStatus() {
-  if (!getClientId()) { setAuthStatus('warn', '尚未設定 Client ID / Client ID not set'); return; }
-  if (loadToken()) { setAuthStatus('ok', '✅ 已連接 / Connected'); return; }
-  setAuthStatus('warn', '已儲存 ID，請按「登入」/ ID saved, please Sign In');
+  if (!getIcalUrl()) { setAuthStatus('warn', '尚未設定 iCal URL / Not configured'); return; }
+  if (lastIcalFetchOk) { setAuthStatus('ok', `✅ 已連接 / Connected (上次更新 ${lastIcalFetchOk.toLocaleTimeString()})`); return; }
+  setAuthStatus('warn', '已儲存，按「儲存並更新」抓資料 / Saved, hit refresh');
 }
 
 settingsBtn.addEventListener('click', () => {
-  clientIdInput.value = getClientId();
+  icalInput.value = getIcalUrl();
   refreshAuthStatus();
   settingsOverlay.classList.add('show');
 });
 document.getElementById('close-settings').addEventListener('click', () => settingsOverlay.classList.remove('show'));
 settingsOverlay.addEventListener('click', (e) => { if (e.target === settingsOverlay) settingsOverlay.classList.remove('show'); });
 
-document.getElementById('save-clientid').addEventListener('click', () => {
-  const v = clientIdInput.value.trim();
-  if (!v) { setAuthStatus('err', '請輸入 Client ID'); return; }
-  saveClientId(v);
-  tokenClient = null;
-  refreshAuthStatus();
+document.getElementById('save-ical').addEventListener('click', () => {
+  const v = icalInput.value.trim();
+  if (!v) { setAuthStatus('err', '請貼上 iCal URL'); return; }
+  if (!/^https?:\/\//i.test(v) || !/\.ics$/i.test(v.split('?')[0])) {
+    setAuthStatus('err', '網址不像 .ics — 請確認是 iCal 格式');
+    return;
+  }
+  saveIcalUrl(v);
+  fetchAndRenderShift();
 });
-document.getElementById('signin-btn').addEventListener('click', signIn);
-document.getElementById('signout-btn').addEventListener('click', signOut);
+document.getElementById('clear-ical').addEventListener('click', () => {
+  clearIcalUrl();
+  cachedShiftIntervals = [];
+  lastIcalFetchOk = null;
+  setAuthStatus('warn', '已清除 / Cleared');
+  renderShift();
+});
 
-function tryBootstrapCalendar() {
-  if (!getClientId()) { renderShift(); return; }
-  if (!window.__gisReady || !window.google?.accounts?.oauth2) {
-    setTimeout(tryBootstrapCalendar, 500); return;
-  }
-  initTokenClient();
-  const tok = loadToken();
-  if (tok) {
-    accessToken = tok;
-    fetchAndRenderShift();
-  } else {
-    renderShift();
-  }
-}
-tryBootstrapCalendar();
+// Bootstrap on load
+if (getIcalUrl()) fetchAndRenderShift();
 renderShift();
 
 document.addEventListener('gesturestart', e => e.preventDefault());
