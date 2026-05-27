@@ -138,6 +138,8 @@
     color: #555;
     text-align: center;
     line-height: 1.3;
+    flex: 1;
+    min-width: 260px;
   }
   .shift-status {
     font-size: clamp(14px, 1.7vw, 22px);
@@ -151,6 +153,64 @@
   .dot.work { background: var(--accent); animation: pulse-dot 1.2s infinite; }
   .dot.home { background: var(--green); }
   @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* Progress bar for current shift */
+  .shift-progress { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  .shift-progress-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: clamp(11px, 1.3vw, 16px);
+    font-weight: 700;
+    color: #555;
+    gap: 8px;
+  }
+  .shift-progress-pct {
+    font-size: clamp(14px, 1.7vw, 22px);
+    font-weight: 900;
+    color: var(--accent);
+  }
+  .shift-progress-track {
+    position: relative;
+    height: clamp(14px, 1.8vh, 22px);
+    background: rgba(0,0,0,0.08);
+    border-radius: 999px;
+    overflow: visible;
+  }
+  .shift-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
+    background: linear-gradient(90deg, #FFC93C, #FF9F1C, #FF6B6B);
+  }
+  .shift-progress-fill.night {
+    background: linear-gradient(90deg, #5E60CE, #4361EE, #1D3557);
+  }
+  .shift-progress-marker {
+    position: absolute;
+    top: 50%;
+    width: clamp(22px, 2.6vh, 32px);
+    height: clamp(22px, 2.6vh, 32px);
+    background: #fff;
+    border: 4px solid var(--accent);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    transition: left 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
+    animation: marker-pulse 1.4s infinite;
+  }
+  .shift-progress-marker.night { border-color: #5E60CE; }
+  @keyframes marker-pulse {
+    0%, 100% { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 0 rgba(255,107,107,0.6); }
+    50%      { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 10px rgba(255,107,107,0); }
+  }
+  .shift-progress-marker.night {
+    animation-name: marker-pulse-night;
+  }
+  @keyframes marker-pulse-night {
+    0%, 100% { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 0 rgba(94,96,206,0.6); }
+    50%      { box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 10px rgba(94,96,206,0); }
+  }
 
   .main {
     display: grid;
@@ -822,7 +882,8 @@ const CORS_PROXY = 'https://corsproxy.io/?url=';
 let cachedShiftIntervals = [];
 let lastIcalFetchOk = null;
 
-function getIcalUrl() { return localStorage.getItem('ical_url') || ''; }
+const DEFAULT_ICAL_URL = 'https://calendar.google.com/calendar/ical/limzijiang5183%40gmail.com/private-719d790a308f53dc86018115d6f8112a/basic.ics';
+function getIcalUrl() { return localStorage.getItem('ical_url') || DEFAULT_ICAL_URL; }
 function saveIcalUrl(u) { localStorage.setItem('ical_url', u); }
 function clearIcalUrl() { localStorage.removeItem('ical_url'); }
 
@@ -966,13 +1027,34 @@ function renderShift() {
   shiftBadge.innerHTML = `${sh.zh}<br>${sh.en}`;
   const leaveStr = pad(sh.leaveH) + ':' + pad(sh.leaveM);
   const homeStr  = pad(sh.homeH)  + ':' + pad(sh.homeM);
-  shiftTimesEl.innerHTML = `🚪 出門 ${leaveStr} → 🏠 ${homeStr} 回家<br>Leave ${leaveStr} → Home ${homeStr}`;
+
+  // Progress bar: 0% before leave, 100% after home, linear in between
+  const now = new Date();
+  const total = state.iv.home - state.iv.leave;
+  const elapsed = now - state.iv.leave;
+  const pctRaw = total > 0 ? (elapsed / total) * 100 : 0;
+  const pct = Math.max(0, Math.min(100, pctRaw));
+  const pctDisplay = state.atWork ? Math.round(pct) + '%' : (pct <= 0 ? '等出門 / Waiting' : '已下班 / Done');
+  const cls = state.iv.type; // 'day' | 'night'
+  shiftTimesEl.innerHTML = `
+    <div class="shift-progress">
+      <div class="shift-progress-labels">
+        <span>🚪 ${leaveStr} 出門 / Leave</span>
+        <span class="shift-progress-pct">${pctDisplay}</span>
+        <span>🏠 ${homeStr} 回家 / Home</span>
+      </div>
+      <div class="shift-progress-track">
+        <div class="shift-progress-fill ${cls}" style="width:${pct}%"></div>
+        <div class="shift-progress-marker ${cls}" style="left:${pct}%"></div>
+      </div>
+    </div>`;
+
   if (state.atWork) {
-    const cd = fmtCountdown(state.next - new Date());
-    shiftStatusEl.innerHTML = `<span class="dot work"></span>在上班 At Work<br><small style="font-weight:600;opacity:0.7">${cd.zh} / ${cd.en}</small>`;
+    const cd = fmtCountdown(state.next - now);
+    shiftStatusEl.innerHTML = `<span class="dot work"></span><div>在上班 At Work<br><small style="font-weight:600;opacity:0.7">${cd.zh} / ${cd.en}</small></div>`;
   } else if (state.nextKind === 'leave') {
-    const cd = fmtCountdown(state.next - new Date());
-    shiftStatusEl.innerHTML = `<span class="dot home"></span>在家 At Home<br><small style="font-weight:600;opacity:0.7">${cd.zh}出門 / ${cd.en} to leave</small>`;
+    const cd = fmtCountdown(state.next - now);
+    shiftStatusEl.innerHTML = `<span class="dot home"></span><div>在家 At Home<br><small style="font-weight:600;opacity:0.7">${cd.zh}出門 / ${cd.en} to leave</small></div>`;
   } else {
     shiftStatusEl.innerHTML = `<span class="dot home"></span>已下班 Off Work`;
   }
