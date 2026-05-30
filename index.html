@@ -510,7 +510,7 @@
   .settings details summary { cursor: pointer; font-weight: 700; padding: 8px; background: #f5f5f5; border-radius: 8px; }
   .settings details ol { padding: 12px 24px; line-height: 1.6; }
   .settings details code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; word-break: break-all; }
-  .popup-tests { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
+  .popup-tests { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px; margin-top: 6px; }
   .popup-tests button {
     flex: none;
     min-width: 0;
@@ -655,10 +655,12 @@ const DAYS = [
 ];
 
 const ACTIVITIES = [
-  { h: 7,  m: 30, emoji: '🎒', zh: '上學', en: 'School', color: '#7C3AED', period: 'am', creature: '🐬', image: 'img/dolphin_school.jpg', audioZh: 'audio/school_zh.mp3', audioEn: 'audio/school_en.mp3' },
-  { h: 18, m: 30, emoji: '🍚', zh: '吃飯', en: 'Dinner', color: '#F97316', period: 'pm', creature: '🐢', image: 'img/turtle_dinner.jpg', audioZh: 'audio/dinner_zh.mp3', audioEn: 'audio/dinner_en.mp3' },
-  { h: 20, m: 0,  emoji: '🛁', zh: '洗澡', en: 'Bath',   color: '#A78BFA', period: 'pm', creature: '🐳', image: 'img/whale_bath.jpg',     audioZh: 'audio/bath_zh.mp3',   audioEn: 'audio/bath_en.mp3' },
-  { h: 20, m: 30, emoji: '😴', zh: '睡覺', en: 'Sleep',  color: '#5B21B6', period: 'pm', creature: '🐙', image: 'img/octopus_sleep.jpg',  audioZh: 'audio/sleep_zh.mp3',  audioEn: 'audio/sleep_en.mp3' },
+  { h: 7,  m: 30, emoji: '🎒', zh: '上學',   en: 'School',  color: '#7C3AED', period: 'am', creature: '🐬', image: 'img/dolphin_school.jpg',  audioZh: 'audio/school_zh.mp3',   audioEn: 'audio/school_en.mp3' },
+  { h: 18, m: 30, emoji: '🍚', zh: '吃飯',   en: 'Dinner',  color: '#F97316', period: 'pm', creature: '🐢', image: 'img/turtle_dinner.jpg',   audioZh: 'audio/dinner_zh.mp3',   audioEn: 'audio/dinner_en.mp3' },
+  { h: 20, m: 0,  emoji: '🛁', zh: '洗澡',   en: 'Bath',    color: '#A78BFA', period: 'pm', creature: '🐳', image: 'img/whale_bath.jpg',      audioZh: 'audio/bath_zh.mp3',     audioEn: 'audio/bath_en.mp3' },
+  { h: 20, m: 30, emoji: '😴', zh: '睡覺',   en: 'Sleep',   color: '#5B21B6', period: 'pm', creature: '🐙', image: 'img/octopus_sleep.jpg',   audioZh: 'audio/sleep_zh.mp3',    audioEn: 'audio/sleep_en.mp3' },
+  // Manual-only: not scheduled, not on clock face — only fires from the settings test panel
+  { manual: true, emoji: '🚿', zh: '洗屁股', en: 'Bottom Wash', color: '#06B6D4', creature: '🐧', image: 'img/penguin_buttwash.jpg', audioZh: 'audio/buttwash_zh.mp3', audioEn: 'audio/buttwash_en.mp3' },
 ];
 
 const SHIFTS = {
@@ -704,6 +706,7 @@ for (let h = 1; h <= 12; h++) {
 // Pointer line stops short of the activity circle (which has r=48 at distance R+58 from centre)
 const POINTER_END_OFFSET = 56;
 ACTIVITIES.forEach((a, i) => {
+  if (a.manual) return; // manual-only activities aren't drawn on the clock face
   const hour12 = a.h % 12;
   const totalMin = hour12 * 60 + a.m;
   const deg = totalMin / 720 * 360 - 90;
@@ -942,6 +945,7 @@ popupOverlay.addEventListener('click', (e) => { if (e.target === popupOverlay) c
 
 // Make analog-clock activity circles tappable to manually trigger their popup
 ACTIVITIES.forEach((a, i) => {
+  if (a.manual) return;
   const node = document.getElementById('act-' + i);
   if (!node) return;
   node.style.cursor = 'pointer';
@@ -991,6 +995,7 @@ function update() {
 
   let currentAct = null;
   ACTIVITIES.forEach((a, i) => {
+    if (a.manual) return; // manual-only — no clock face, no auto-detect
     const node = document.getElementById('act-' + i);
     const ptr  = document.getElementById('ptr-' + i);
     const inPeriod = a.period === period;
@@ -1033,6 +1038,7 @@ function update() {
   }
 
   for (const a of ACTIVITIES) {
+    if (a.manual) continue;
     if (a.h === h && a.m === m && s < 5) {
       const key = `${now.toDateString()}-${a.h}-${a.m}`;
       if (lastPoppedKey !== key) {

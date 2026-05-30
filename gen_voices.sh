@@ -18,6 +18,8 @@ clips=(
   "bath_en|Lim Meng, it's bath time!"
   "sleep_zh|林盟，現在是睡覺時間囉！"
   "sleep_en|Lim Meng, it's sleep time."
+  "buttwash_zh|林盟，現在是洗屁股時間！"
+  "buttwash_en|Lim Meng, it's bottom-washing time!"
 )
 
 generate_one() {
