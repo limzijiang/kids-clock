@@ -20,6 +20,10 @@ clips=(
   "sleep_en|Lim Meng, it's sleep time."
   "buttwash_zh|林盟，現在是洗屁股時間！"
   "buttwash_en|Lim Meng, it's bottom-washing time!"
+  "tidy_zh|林盟，現在是收拾書本和玩具的時間！"
+  "tidy_en|Lim Meng, it's time to tidy up our books and toys!"
+  "dress_zh|林盟，我們一起來穿衣服！"
+  "dress_en|Lim Meng, let's get dressed together!"
 )
 
 generate_one() {
